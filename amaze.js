@@ -41,16 +41,33 @@
             this._h = direction === 'vertical' ? 1 : 0;
         }
 
+        Door.prototype.isChamberDoor = function(chamber) {
+            if (this._x === chamber._x || this._x === chamber._x + chamber._w) {
+                if (this._y <= chamber._y + chamber._h - 1 && this._y >= chamber._y) {
+                    return true;
+                }
+            } else if (this._y === chamber._y || this._y === chamber._y + chamber._h) {
+                if (this._x <= chamber._x + chamber._w - 1 && this._x >= chamber._x) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         function Chamber(x, y, w, h, doors) {
             this._x = x;
             this._y = y;
             this._w = w;
             this._h = h;
 
-            this._doors = doors;
+            this._doors = [];
 
             this._chambers = [];
         }
+
+        Chamber.prototype.addDoor = function(door) {
+            this._doors.push(door);
+        };
 
         Chamber.prototype.getHorizontalWall = function() {
             return randomInterval(1, this._w - 1);
@@ -89,16 +106,22 @@
             var splitWidth = this.getHorizontalWall();
             var splitHeight = this.getVerticalWall();
 
-            var doorList = this.getDoors(splitWidth, splitHeight);
+            this._doors = this._doors.concat(this.getDoors(splitWidth, splitHeight));
 
-            doorList.forEach(function(door) {
-                doors.push(door);
-            });
+            this._chambers[TOP_LEFT_CHAMBER] = new Chamber(this._x, this._y, splitWidth, splitHeight); //.divide(chambers, doors);
+            this._chambers[TOP_RIGHT_CHAMBER] = new Chamber(splitWidth + this._x, this._y, this._w - splitWidth, splitHeight); //.divide(chambers, doors);
+            this._chambers[BOTTOM_LEFT_CHAMBER] = new Chamber(this._x, this._y + splitHeight, splitWidth, this._h - splitHeight); //.divide(chambers, doors);
+            this._chambers[BOTTOM_RIGHT_CHAMBER] = new Chamber(splitWidth + this._x, this._y + splitHeight, this._w - splitWidth, this._h - splitHeight); //.divide(chambers, doors);
 
-            this._chambers[TOP_LEFT_CHAMBER] = new Chamber(this._x, this._y, splitWidth, splitHeight).divide(chambers, doors);
-            this._chambers[TOP_RIGHT_CHAMBER] = new Chamber(splitWidth + this._x, this._y, this._w - splitWidth, splitHeight).divide(chambers, doors);
-            this._chambers[BOTTOM_LEFT_CHAMBER] = new Chamber(this._x, this._y + splitHeight, splitWidth, this._h - splitHeight).divide(chambers, doors);
-            this._chambers[BOTTOM_RIGHT_CHAMBER] = new Chamber(splitWidth + this._x, this._y + splitHeight, this._w - splitWidth, this._h - splitHeight).divide(chambers, doors);
+            this._chambers.forEach(function(chamber) {
+                this._doors.forEach(function(door) {
+                    if (door.isChamberDoor(chamber)) {
+                        chamber.addDoor(door);
+                    }
+                }, this);
+                chamber.divide(chambers);
+            }, this);
+
         }
 
         function Maze(settings) {
@@ -106,18 +129,13 @@
 
             var _root = new Chamber(0, 0, settings.width, settings.height, null);
             var _chamberList = [];
-            var _doors = [];
 
             this.generate = function() {
-                _root.divide(_chamberList, _doors);
+                _root.divide(_chamberList);
             };
 
             this.getChambers = function() {
                 return _chamberList;
-            };
-
-            this.getDoors = function() {
-                return _doors;
             };
         }
 
