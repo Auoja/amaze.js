@@ -9,6 +9,14 @@
         var BOTTOM_LEFT_CHAMBER = 2;
         var BOTTOM_RIGHT_CHAMBER = 3;
 
+        var TOP = 0;
+        var BOTTOM = 1;
+        var LEFT = 2;
+        var RIGHT = 3;
+
+        var HORIZONTAL = 0;
+        var VERTICAL = 1;
+
         var defaultSettings = {
             width: 20,
             height: 20
@@ -41,14 +49,6 @@
             this.y2 = y2;
         }
 
-        Line.prototype.splitLine = function(line) {
-            var lines = [
-                new Line(this.x1, this.y1, line.x1, line.y1),
-                new Line(line.x2, line.y2, this.x2, this.y2)
-            ];
-            return lines;
-        };
-
         Line.prototype.subdivide = function() {
             var lines = [];
             if (this.x1 - this.x2 === 0) {
@@ -67,27 +67,18 @@
             return lines;
         };
 
-        Line.prototype.compare = function(line) {
+        Line.prototype.compareLines = function(line) {
             return ((this.x1 === line.x1) &&
                 (this.x2 === line.x2) &&
                 (this.y1 === line.y1) &&
                 (this.y2 === line.y2));
         };
 
-        Line.prototype.faulty = function() {
-            var x = this.x2 - this.x1;
-            var y = this.y2 - this.y1;
-            if (x !== 0 && y !== 0) {
-                return true
-            }
-            return false;
-        };
-
         function Door(x, y, type) {
             this._x = x;
             this._y = y;
-            this._w = type === 'horizontal' ? 1 : 0;
-            this._h = type === 'vertical' ? 1 : 0;
+            this._w = type === HORIZONTAL ? 1 : 0;
+            this._h = type === VERTICAL ? 1 : 0;
             this._type = type;
         }
 
@@ -104,7 +95,7 @@
             return false;
         };
 
-        Door.prototype.getLine = function() {
+        Door.prototype.convertToLine = function() {
             return new Line(this._x, this._y, this._x + this._w, this._y + this._h);
         };
 
@@ -114,7 +105,7 @@
             this._w = w;
             this._h = h;
 
-            this._doors = [];
+            this._doors = doors || [];
         }
 
         Chamber.prototype.addDoor = function(door) {
@@ -137,10 +128,10 @@
             var leftDoor = randomInterval(0, splitWidth - 1);
             var rightDoor = randomInterval(splitWidth, this._w - 1);
 
-            doorList[0] = new Door(this._x + splitWidth, this._y + topDoor, 'vertical');
-            doorList[1] = new Door(this._x + splitWidth, this._y + bottomDoor, 'vertical');
-            doorList[2] = new Door(this._x + leftDoor, this._y + splitHeight, 'horizontal');
-            doorList[3] = new Door(this._x + rightDoor, this._y + splitHeight, 'horizontal');
+            doorList[0] = new Door(this._x + splitWidth, this._y + topDoor, VERTICAL);
+            doorList[1] = new Door(this._x + splitWidth, this._y + bottomDoor, VERTICAL);
+            doorList[2] = new Door(this._x + leftDoor, this._y + splitHeight, HORIZONTAL);
+            doorList[3] = new Door(this._x + rightDoor, this._y + splitHeight, HORIZONTAL);
 
             var noDoor = Math.floor(Math.random() * 3);
 
@@ -161,7 +152,6 @@
 
             this._doors = this._doors.concat(this.createDoors(splitWidth, splitHeight));
 
-
             splitChambers[TOP_LEFT_CHAMBER] = new Chamber(this._x, this._y, splitWidth, splitHeight);
             splitChambers[TOP_RIGHT_CHAMBER] = new Chamber(splitWidth + this._x, this._y, this._w - splitWidth, splitHeight);
             splitChambers[BOTTOM_LEFT_CHAMBER] = new Chamber(this._x, this._y + splitHeight, splitWidth, this._h - splitHeight);
@@ -180,7 +170,7 @@
 
         Chamber.prototype.getHorizontalDoors = function() {
             var result = result = this._doors.filter(function(door) {
-                return door._type === 'horizontal';
+                return door._type === HORIZONTAL;
             });
 
             function compare(a, b) {
@@ -194,7 +184,7 @@
 
         Chamber.prototype.getVerticalDoors = function() {
             var result = result = this._doors.filter(function(door) {
-                return door._type === 'vertical';
+                return door._type === VERTICAL;
             });
 
             function compare(a, b) {
@@ -206,23 +196,24 @@
             return result;
         };
 
-        Chamber.prototype.getLines = function() {
-            var lines = [];
+        Chamber.prototype.getDoorSegments = function() {
+
+            var result = [];
+
+            result[TOP] = [];
+            result[BOTTOM] = [];
+            result[LEFT] = [];
+            result[RIGHT] = [];
 
             var horizontalDoors = this.getHorizontalDoors();
             var verticalDoors = this.getVerticalDoors();
 
-            var topDoors = [];
-            var bottomDoors = [];
-            var leftDoors = [];
-            var rightDoors = [];
-
             if (horizontalDoors) {
                 horizontalDoors.forEach(function(door) {
                     if (door._y === this._y) {
-                        topDoors.push(door.getLine());
+                        result[TOP].push(door.convertToLine());
                     } else {
-                        bottomDoors.push(door.getLine());
+                        result[BOTTOM].push(door.convertToLine());
                     }
                 }, this);
             }
@@ -230,23 +221,38 @@
             if (verticalDoors) {
                 verticalDoors.forEach(function(door) {
                     if (door._x === this._x) {
-                        leftDoors.push(door.getLine());
+                        result[LEFT].push(door.convertToLine());
                     } else {
-                        rightDoors.push(door.getLine());
+                        result[RIGHT].push(door.convertToLine());
                     }
                 }, this);
             }
 
-            var topLines = new Line(this._x, this._y, this._x + this._w, this._y).subdivide();
-            var leftLines = new Line(this._x, this._y, this._x, this._y + this._h).subdivide();
-            var rightLines = new Line(this._x + this._w, this._y, this._x + this._w, this._y + this._h).subdivide();
-            var bottomLines = new Line(this._x, this._y + this._h, this._x + this._w, this._y + this._h).subdivide();
+            return result;
+        };
+
+        Chamber.prototype.getWallSegments = function() {
+            var result = [];
+
+            result[TOP] = new Line(this._x, this._y, this._x + this._w, this._y).subdivide();
+            result[LEFT] = new Line(this._x, this._y, this._x, this._y + this._h).subdivide();
+            result[RIGHT] = new Line(this._x + this._w, this._y, this._x + this._w, this._y + this._h).subdivide();
+            result[BOTTOM] = new Line(this._x, this._y + this._h, this._x + this._w, this._y + this._h).subdivide();
+
+            return result;
+     };
+
+        Chamber.prototype.getLines = function() {
+            var lines = [];
+
+            var doors = this.getDoorSegments();
+            var walls = this.getWallSegments();
 
             function getLines(sublines, doorList, result) {
                 result = sublines.filter(function(sub) {
                     var found = false;
                     doorList.forEach(function(door) {
-                        if (door.compare(sub)) {
+                        if (door.compareLines(sub)) {
                             found = true;
                         }
                     });
@@ -255,10 +261,10 @@
                 return result;
             }
 
-            lines = lines.concat(getLines(topLines, topDoors, lines));
-            lines = lines.concat(getLines(rightLines, rightDoors, lines));
-            lines = lines.concat(getLines(bottomLines, bottomDoors, lines));
-            lines = lines.concat(getLines(leftLines, leftDoors, lines));
+            for (var direction = 0; direction < 4; direction++) {
+                lines = lines.concat(getLines(walls[direction], doors[direction], lines));
+            };
+
 
             return lines;
         }
@@ -266,7 +272,10 @@
         function Maze(settings) {
             settings = extend(defaultSettings, settings);
 
-            var _root = new Chamber(0, 0, settings.width, settings.height, null);
+            var entry = new Door(0, 0, VERTICAL);
+            var exit = new Door(settings.width, settings.height - 1, VERTICAL);
+
+            var _root = new Chamber(0, 0, settings.width, settings.height, [entry, exit]);
             var _chamberList = [];
 
             this.generate = function() {
@@ -276,6 +285,16 @@
             this.getChambers = function() {
                 return _chamberList;
             };
+
+            this.getLines = function() {
+                var lines = [];
+                _chamberList.forEach(function(chamber) {
+                    lines = lines.concat(chamber.getLines());
+                });
+                return lines;
+            };
+
+            return this;
         }
 
         return Maze;
