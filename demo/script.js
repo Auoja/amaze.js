@@ -5,8 +5,8 @@ function startDemo() {
     ctx.lineCap = 'square';
     ctx.strokeStyle = 'black';
 
-    var mazeWidth = 70;
-    var mazeHeight = 50;
+    var mazeWidth = 35;
+    var mazeHeight = 25;
     var offset = 50;
 
     var unit_x = (canvas.width - 2 * offset) / mazeWidth;
