@@ -2,6 +2,8 @@
 
 A maze generator.
 
+![Example result](/../images/images/example.png?raw=true)
+
 ## Usage
 
 ```javascript
@@ -14,8 +16,8 @@ A maze generator.
 	maze.generate();
 	
 	// Render
-    var canvas = document.getElementById('canvas');
-    var ctx = canvas.getContext('2d');
+	var canvas = document.getElementById('canvas');
+	var ctx = canvas.getContext('2d');
 	var lines = maze.getLines(); // The walls of the maze
 	
 	lines.forEach(function(line) {
